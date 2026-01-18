@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<title>BTC-USDT · Net Volume (Realtime Fixed)</title>
+
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+
+<style>
+body {
+  margin:0;
+  background:#121417;
+  color:#e6e6e6;
+  font-family:Arial,sans-serif;
+}
+.wrapper {
+  max-width:1100px;
+  margin:20px auto;
+  padding:0 10px;
+}
+.title { text-align:center; font-size:18px; }
+.sub { text-align:center; font-size:13px; color:#8a8a8a; margin-bottom:8px; }
+
+.tf-buttons {
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  margin-bottom:8px;
+}
+.tf-buttons button {
+  background:#2a2d33;
+  border:0;
+  color:#ccc;
+  padding:5px 10px;
+  border-radius:4px;
+  font-size:12px;
+  cursor:pointer;
+}
+.tf-buttons button:hover {
+  background:#363a41;
+}
+.tf-buttons button.active {
+  background:#3f434b;
+  color:#fff;
+}
+
+#price,#volume {
+  touch-action:none !important;
+  width:100%;
+}
+#price { height:420px; }
+#volume { height:140px; }
+</style>
+</head>
+
+<body>
+<div class="wrapper">
+  <div class="title">BTC-USDT · NET VOLUME</div>
+  <div class="sub">BINANCE · REALTIME (USDT)</div>
+
+  <div class="tf-buttons">
+    <button onclick="setTF('1d')">1D</button>
+    <button onclick="setTF('4h')">4H</button>
+    <button onclick="setTF('1h')" class="active">1H</button>
+    <button onclick="setTF('30m')">30M</button>
+    <button onclick="setTF('15m')">15M</button>
+    <button onclick="setTF('5m')">5M</button>
+  </div>
+
+  <div id="price"></div>
+  <div id="volume"></div>
+</div>
+
+<script>
+/* ===== iOS ZOOM BLOCK ===== */
+['gesturestart','gesturechange','gestureend'].forEach(e=>{
+  document.addEventListener(e,ev=>ev.preventDefault(),{passive:false});
+});
+
+/* ===== TIME FORMAT ===== */
+function formatTimeNoSeconds(time) {
+  const d = new Date(time * 1000);
+  const date = d.toLocaleDateString('ru-RU', {
+    day: '2-digit', month: 'short', year: '2-digit'
+  });
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${date} ${hh}:${mm}`;
+}
+
+let INTERVAL = '1h';
+let ws = null;
+let sessionId = 0;
+
+/* ===== COMMON OPTIONS ===== */
+const commonOpts = {
+  layout:{ background:{color:'#121417'}, textColor:'#ccc' },
+  grid:{ vertLines:{color:'#1e2228'}, horzLines:{color:'#1e2228'} },
+  localization: { timeFormatter: formatTimeNoSeconds },
+  timeScale:{
+    timeVisible:true,
+    secondsVisible:false,
+    rightBarStaysOnScroll:true,
+    lockVisibleTimeRangeOnResize:true
+  },
+  handleScroll:{
+    mouseWheel:false, pressedMouseMove:true, horzTouchDrag:true, vertTouchDrag:false
+  }
+};
+
+/* ===== CHART SETUP ===== */
+const priceChart = LightweightCharts.createChart(document.getElementById('price'), {
+  ...commonOpts,
+  handleScale:{ mouseWheel:false, axisPressedMouseMove:false, pinch:true },
+  rightPriceScale:{visible:false},
+  leftPriceScale:{visible:false}
+});
+
+const candles = priceChart.addCandlestickSeries({
+  upColor:'#1fc77b', downColor:'#e04b4b',
+  borderUpColor:'#1fc77b', borderDownColor:'#e04b4b',
+  wickUpColor:'#1fc77b', wickDownColor:'#e04b4b'
+});
+
+const volumeChart = LightweightCharts.createChart(document.getElementById('volume'), {
+  ...commonOpts,
+  handleScale:{ mouseWheel:false, axisPressedMouseMove:false, pinch:false },
+  rightPriceScale:{visible:false},
+  leftPriceScale:{visible:false}
+});
+
+const volumeSeries = volumeChart.addHistogramSeries({
+  base:0,
+  priceFormat:{type:'volume'}
+});
+
+/* ===== SYNC ===== */
+let syncing = false;
+function syncCharts(a,b){
+  a.timeScale().subscribeVisibleLogicalRangeChange(range=>{
+    if(syncing || !range) return;
+    syncing = true;
+    b.timeScale().setVisibleLogicalRange(range);
+    syncing = false;
+  });
+}
+syncCharts(priceChart, volumeChart);
+syncCharts(volumeChart, priceChart);
+
+/* ===== RESIZE ===== */
+function resizeCharts(){
+  priceChart.resize(document.getElementById('price').clientWidth, 420);
+  volumeChart.resize(document.getElementById('volume').clientWidth, 140);
+}
+window.addEventListener('resize', resizeCharts);
+
+/* ===== DATA LOADING ===== */
+async function loadData(){
+  sessionId++;
+  const currentSession = sessionId;
+
+  if (ws) {
+    ws.onmessage = null;
+    ws.close();
+    ws = null;
+  }
+
+  // Загружаем историю
+  try {
+    const r = await fetch(
+      `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${INTERVAL}&limit=500`
+    );
+    const d = await r.json();
+
+    const c=[], v=[];
+    d.forEach(k=>{
+      const t = k[0] / 1000;
+      
+      c.push({
+        time:t,
+        open:+k[1], high:+k[2], low:+k[3], close:+k[4]
+      });
+
+      // Формула: 2 * TakerBuyQuoteVolume - TotalQuoteVolume
+      // k[10] = Taker buy quote asset volume
+      // k[7]  = Quote asset volume
+      const net = 2*k[10] - k[7];
+      
+      v.push({
+        time:t,
+        value:net/1e6, // В миллионах USDT
+        color:net>=0?'#1fc77b':'#e04b4b'
+      });
+    });
+
+    candles.setData(c);
+    volumeSeries.setData(v);
+    
+    priceChart.timeScale().fitContent();
+    resizeCharts();
+    
+    // Запускаем сокет ПОСЛЕ загрузки истории
+    startRealtime(currentSession);
+    
+  } catch (e) {
+    console.error("Error loading history:", e);
+  }
+}
+
+/* ===== REALTIME (FIXED) ===== */
+function startRealtime(currentSession){
+  ws = new WebSocket(
+    `wss://stream.binance.com:9443/ws/btcusdt@kline_${INTERVAL}`
+  );
+
+  ws.onmessage = e => {
+    if (currentSession !== sessionId) return;
+
+    const data = JSON.parse(e.data);
+    const k = data.k;
+    const time = Math.floor(k.t / 1000);
+
+    // 1. Обновляем свечу цены
+    candles.update({
+      time: time,
+      open: +k.o,
+      high: +k.h,
+      low: +k.l,
+      close: +k.c
+    });
+
+    // 2. Обновляем объем (Без дельт, используем абсолютные значения свечи)
+    // k.Q = Taker buy quote asset volume (USDT)
+    // k.q = Quote asset volume (USDT)
+    // Внимание: используем .Q (большую) и .q (малую)
+    
+    const currentNet = (2 * +k.Q - +k.q);
+
+    volumeSeries.update({
+      time: time,
+      value: currentNet / 1e6, // Делим на 1млн, чтобы соотносилось с историей
+      color: currentNet >= 0 ? '#1fc77b' : '#e04b4b'
+    });
+  };
+
+  ws.onclose = () => {
+    if (currentSession !== sessionId) return;
+    console.log("WS closed, reconnecting...");
+    setTimeout(()=>startRealtime(currentSession), 2000);
+  };
+}
+
+/* ===== UI HANDLERS ===== */
+function setTF(tf){
+  if(INTERVAL === tf) return;
+  INTERVAL = tf;
+  document.querySelectorAll('.tf-buttons button').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  loadData();
+}
+
+// Старт
+loadData();
+</script>
+</body>
+</html>
