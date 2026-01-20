@@ -2,121 +2,225 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-
-<title>BTC-USDT · Net Volume (Realtime Fixed)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>NET VOLUME · BINANCE</title>
 
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 
 <style>
+/* ===== СТИЛЬ КАК В ПЕРВОМ КОДЕ ===== */
 body {
-  margin:0;
-  background:#121417;
-  color:#e6e6e6;
-  font-family:Arial,sans-serif;
+    margin: 0;
+    background: #121417;
+    color: #e6e6e6;
+    font-family: -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+    overflow-y: auto; /* Разрешаем скролл */
+    min-height: 100vh;
+    padding-bottom: 40px;
+    -webkit-tap-highlight-color: transparent;
 }
+
 .wrapper {
-  max-width:1100px;
-  margin:20px auto;
-  padding:0 10px;
+    max-width: 800px; /* Как в первом коде */
+    margin: 0 auto;
+    padding: 10px;
+    box-sizing: border-box;
 }
-.title { text-align:center; font-size:18px; }
-.sub { text-align:center; font-size:13px; color:#8a8a8a; margin-bottom:8px; }
+
+.title { 
+    font-size: 18px; 
+    font-weight: 800; 
+    color: #fff; 
+    text-align: center;
+}
+.sub { 
+    font-size: 12px; 
+    color: #6b7280; 
+    margin-top: 2px; 
+    margin-bottom: 15px; 
+    text-align: center;
+}
+
+/* Controls Container */
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+}
 
 .tf-buttons {
-  display:flex;
-  justify-content:center;
-  gap:8px;
-  margin-bottom:8px;
-}
-.tf-buttons button {
-  background:#2a2d33;
-  border:0;
-  color:#ccc;
-  padding:5px 10px;
-  border-radius:4px;
-  font-size:12px;
-  cursor:pointer;
-}
-.tf-buttons button:hover {
-  background:#363a41;
-}
-.tf-buttons button.active {
-  background:#3f434b;
-  color:#fff;
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
-#price,#volume {
-  touch-action:none !important;
-  width:100%;
+/* Кнопки стилизованы ближе к общей теме */
+.tf-buttons button {
+    background: #1e2228;
+    border: 1px solid #374151;
+    color: #9ca3af;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
 }
-#price { height:420px; }
-#volume { height:140px; }
+
+.tf-buttons button:active {
+    transform: scale(0.96);
+}
+
+.tf-buttons button.active {
+    background: #2a2d33;
+    color: #fff;
+    border-color: #6b7280;
+}
+
+/* ===== ГРАФИКИ (Оформление как в первом коде) ===== */
+.chart-box {
+    width: 100%;
+    border-radius: 12px;     /* Закругление */
+    overflow: hidden;        /* Чтобы график не вылезал за углы */
+    border: 1px solid #1f2937; /* Цвет рамки как в первом коде */
+    position: relative;
+    margin-bottom: 10px;
+    background: #121417;
+}
+
+#price { 
+    height: 420px; 
+    width: 100%; 
+}
+#volume { 
+    height: 140px; 
+    width: 100%; 
+}
+
+/* ===== НОВОЕ: ЛЕГЕНДА ОБЪЕМА ===== */
+#vol-legend {
+    position: absolute;
+    top: 6px;
+    left: 10px;
+    z-index: 10;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 11px;
+    color: #9ca3af;
+    pointer-events: none;
+    background: rgba(18, 20, 23, 0.8); /* Полупрозрачный фон для читаемости */
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* Цвета для цифр в легенде */
+.val-buy { color: #1fc77b; }
+.val-sell { color: #e04b4b; }
+.val-total { color: #e6e6e6; }
+
 </style>
 </head>
 
 <body>
 <div class="wrapper">
-  <div class="title">BTC-USDT · NET VOLUME</div>
-  <div class="sub">BINANCE · REALTIME</div>
+  <div class="title">BTC/USDT <span style="color:#6b7280; font-weight:400;">NET VOL</span></div>
+  <div class="sub">BINANCE REALTIME DATA</div>
 
-  <div class="tf-buttons">
-    <button onclick="setTF('1d')">1D</button>
-    <button onclick="setTF('4h')">4H</button>
-    <button onclick="setTF('1h')" class="active">1H</button>
-    <button onclick="setTF('30m')">30M</button>
-    <button onclick="setTF('15m')">15M</button>
-    <button onclick="setTF('5m')">5M</button>
+  <div class="controls">
+    <div class="tf-buttons" id="symbol-buttons">
+      <button onclick="setSymbol('BTCUSDT')" class="active">BTC</button>
+      <button onclick="setSymbol('ETHUSDT')">ETH</button>
+      <button onclick="setSymbol('BNBUSDT')">BNB</button>
+      <button onclick="setSymbol('SOLUSDT')">SOL</button>
+      <button onclick="setSymbol('XRPUSDT')">XRP</button>
+
+      <button onclick="setSymbol('DUSKUSDT')">DUSK</button>
+      <button onclick="setSymbol('DOGEUSDT')">DOGE</button>
+      <button onclick="setSymbol('PEPEUSDT')">PEPE</button>
+      <button onclick="setSymbol('NOTUSDT')">NOT</button>
+      <button onclick="setSymbol('BOMEUSDT')">BOME</button>
+      <button onclick="setSymbol('MEMEUSDT')">MEME</button>
+      <button onclick="setSymbol('FRAXUSDT')">FRAX</button>
+      <button onclick="setSymbol('TRUMPUSDT')">TRUMP</button>
+    </div>
+
+    <div class="tf-buttons" id="tf-buttons">
+      <button onclick="setTF('1d')">1D</button>
+      <button onclick="setTF('4h')">4H</button>
+      <button onclick="setTF('1h')" class="active">1H</button>
+      <button onclick="setTF('30m')">30M</button>
+      <button onclick="setTF('15m')">15M</button>
+      <button onclick="setTF('5m')">5M</button>
+    </div>
   </div>
 
-  <div id="price"></div>
-  <div id="volume"></div>
+  <div class="chart-box">
+      <div id="price"></div>
+  </div>
+  
+  <div class="chart-box">
+      <div id="vol-legend">LOADING...</div>
+      <div id="volume"></div>
+  </div>
 </div>
 
 <script>
 /* ===== iOS ZOOM BLOCK ===== */
-['gesturestart','gesturechange','gestureend'].forEach(e=>{
-  document.addEventListener(e,ev=>ev.preventDefault(),{passive:false});
-});
+document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
 
-/* ===== TIME FORMAT ===== */
+/* ===== FORMATTER ===== */
 function formatTimeNoSeconds(time) {
   const d = new Date(time * 1000);
-  const date = d.toLocaleDateString('ru-RU', {
-    day: '2-digit', month: 'short', year: '2-digit'
-  });
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
+  const date = d.toLocaleDateString('ru-RU',{day:'2-digit',month:'short',year:'2-digit'});
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mm = String(d.getMinutes()).padStart(2,'0');
   return `${date} ${hh}:${mm}`;
 }
 
+// Форматтер для больших чисел (1.2M, 500k)
+const volFormatter = new Intl.NumberFormat('en-US', {
+    notation: "compact",
+    maximumFractionDigits: 1
+});
+
+/* ===== STATE ===== */
 let INTERVAL = '1h';
+let SYMBOL = 'BTCUSDT';
 let ws = null;
 let sessionId = 0;
+// НОВОЕ: Хранилище подробных данных по времени
+let volumeDetailsMap = new Map();
+let lastTime = 0; // Время последней свечи
 
-/* ===== COMMON OPTIONS ===== */
+/* ===== CHART CONFIG (Цвета и поведение из первого кода) ===== */
 const commonOpts = {
-  layout:{ background:{color:'#121417'}, textColor:'#ccc' },
-  grid:{ vertLines:{color:'#1e2228'}, horzLines:{color:'#1e2228'} },
+  layout: { background: { color: '#121417' }, textColor: '#9ca3af' }, 
+  grid: { vertLines: { color: '#1f2937' }, horzLines: { color: '#1f2937' } }, 
   localization: { timeFormatter: formatTimeNoSeconds },
-  timeScale:{
-    timeVisible:true,
-    secondsVisible:false,
-    rightBarStaysOnScroll:true,
-    lockVisibleTimeRangeOnResize:true
+  timeScale: {
+    timeVisible: true, secondsVisible: false, borderColor: '#1f2937',
+    rightBarStaysOnScroll: true, lockVisibleTimeRangeOnResize: true
   },
-  handleScroll:{
-    mouseWheel:false, pressedMouseMove:true, horzTouchDrag:true, vertTouchDrag:false
+  crosshair: { mode: 0 },
+  handleScroll: { 
+      vertTouchDrag: false, 
+      horzTouchDrag: true 
+  },
+  handleScale: { 
+      pinch: true, 
+      axisPressedMouseMove: true 
   }
 };
 
-/* ===== CHART SETUP ===== */
-const priceChart = LightweightCharts.createChart(document.getElementById('price'), {
+/* ===== CREATE CHARTS ===== */
+const priceContainer = document.getElementById('price');
+const volumeContainer = document.getElementById('volume');
+const legendContainer = document.getElementById('vol-legend');
+
+const priceChart = LightweightCharts.createChart(priceContainer, {
   ...commonOpts,
-  handleScale:{ mouseWheel:false, axisPressedMouseMove:false, pinch:true },
-  rightPriceScale:{visible:false},
-  leftPriceScale:{visible:false}
+  rightPriceScale:{visible:false}, leftPriceScale:{visible:false}
 });
 
 const candles = priceChart.addCandlestickSeries({
@@ -125,11 +229,9 @@ const candles = priceChart.addCandlestickSeries({
   wickUpColor:'#1fc77b', wickDownColor:'#e04b4b'
 });
 
-const volumeChart = LightweightCharts.createChart(document.getElementById('volume'), {
+const volumeChart = LightweightCharts.createChart(volumeContainer, {
   ...commonOpts,
-  handleScale:{ mouseWheel:false, axisPressedMouseMove:false, pinch:false },
-  rightPriceScale:{visible:false},
-  leftPriceScale:{visible:false}
+  rightPriceScale:{visible:false}, leftPriceScale:{visible:false}
 });
 
 const volumeSeries = volumeChart.addHistogramSeries({
@@ -137,61 +239,90 @@ const volumeSeries = volumeChart.addHistogramSeries({
   priceFormat:{type:'volume'}
 });
 
-/* ===== SYNC ===== */
-let syncing = false;
+/* ===== SYNC & RESIZE ===== */
+let syncing=false;
 function syncCharts(a,b){
   a.timeScale().subscribeVisibleLogicalRangeChange(range=>{
-    if(syncing || !range) return;
-    syncing = true;
+    if(syncing||!range)return;
+    syncing=true;
     b.timeScale().setVisibleLogicalRange(range);
-    syncing = false;
+    syncing=false;
   });
 }
-syncCharts(priceChart, volumeChart);
-syncCharts(volumeChart, priceChart);
+syncCharts(priceChart,volumeChart);
+syncCharts(volumeChart,priceChart);
 
-/* ===== RESIZE ===== */
 function resizeCharts(){
-  priceChart.resize(document.getElementById('price').clientWidth, 420);
-  volumeChart.resize(document.getElementById('volume').clientWidth, 140);
+  priceChart.resize(priceContainer.parentElement.offsetWidth, 420);
+  volumeChart.resize(volumeContainer.parentElement.offsetWidth, 140);
 }
-window.addEventListener('resize', resizeCharts);
+window.addEventListener('resize',resizeCharts);
+setTimeout(resizeCharts, 100);
+
+/* ===== NEW: LEGEND UPDATE LOGIC ===== */
+function updateLegendHTML(total, buy, sell) {
+    legendContainer.innerHTML = `
+        TOTAL: <span class="val-total">${volFormatter.format(total)}</span>&nbsp;
+        BUY: <span class="val-buy">${volFormatter.format(buy)}</span>&nbsp;
+        SELL: <span class="val-sell">${volFormatter.format(sell)}</span>
+    `;
+}
+
+// Обработчик движения курсора
+function crosshairHandler(param) {
+    const time = param.time;
+    if (time && volumeDetailsMap.has(time)) {
+        const d = volumeDetailsMap.get(time);
+        updateLegendHTML(d.total, d.buy, d.sell);
+    } else {
+        // Если курсор ушел или нет данных - показываем последнюю свечу
+        if(volumeDetailsMap.has(lastTime)){
+            const d = volumeDetailsMap.get(lastTime);
+            updateLegendHTML(d.total, d.buy, d.sell);
+        }
+    }
+}
+
+// Подписываем оба графика на движение
+priceChart.subscribeCrosshairMove(crosshairHandler);
+volumeChart.subscribeCrosshairMove(crosshairHandler);
 
 /* ===== DATA LOADING ===== */
 async function loadData(){
   sessionId++;
-  const currentSession = sessionId;
+  const currentSession=sessionId;
+  volumeDetailsMap.clear(); // Чистим карту при смене монеты
 
-  if (ws) {
-    ws.onmessage = null;
+  if(ws){
+    ws.onmessage=null;
     ws.close();
-    ws = null;
+    ws=null;
   }
 
-  // Загружаем историю
   try {
-    const r = await fetch(
-      `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${INTERVAL}&limit=500`
+    const r=await fetch(
+      `https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=${INTERVAL}&limit=500`
     );
-    const d = await r.json();
+    const d=await r.json();
 
-    const c=[], v=[];
+    const c=[],v=[];
     d.forEach(k=>{
-      const t = k[0] / 1000;
+      const t=k[0]/1000;
+      c.push({time:t,open:+k[1],high:+k[2],low:+k[3],close:+k[4]});
       
-      c.push({
-        time:t,
-        open:+k[1], high:+k[2], low:+k[3], close:+k[4]
-      });
+      // Расчеты для легенды
+      const totalVol = +k[7]; // Quote Asset Volume (USDT)
+      const buyVol = +k[10];  // Taker Buy Quote Asset Volume
+      const sellVol = totalVol - buyVol;
+      const net = buyVol - sellVol; // Логика как раньше: Net = Buy - Sell (или 2*Buy - Total)
 
-      // Формула: 2 * TakerBuyQuoteVolume - TotalQuoteVolume
-      // k[10] = Taker buy quote asset volume
-      // k[7]  = Quote asset volume
-      const net = 2*k[10] - k[7];
-      
+      // Сохраняем в карту
+      volumeDetailsMap.set(t, { total: totalVol, buy: buyVol, sell: sellVol });
+      lastTime = t; // Обновляем последнее время
+
       v.push({
         time:t,
-        value:net/1e6, // В миллионах USDT
+        value:net/1e6,
         color:net>=0?'#1fc77b':'#e04b4b'
       });
     });
@@ -199,70 +330,96 @@ async function loadData(){
     candles.setData(c);
     volumeSeries.setData(v);
     
+    // Обновляем легенду сразу
+    if(volumeDetailsMap.has(lastTime)) {
+        const d = volumeDetailsMap.get(lastTime);
+        updateLegendHTML(d.total, d.buy, d.sell);
+    }
+    
     priceChart.timeScale().fitContent();
-    resizeCharts();
-    
-    // Запускаем сокет ПОСЛЕ загрузки истории
+    resizeCharts(); 
     startRealtime(currentSession);
-    
-  } catch (e) {
-    console.error("Error loading history:", e);
+  } catch(err) {
+    console.error("Load failed", err);
   }
 }
 
-/* ===== REALTIME (FIXED) ===== */
+/* ===== REALTIME ===== */
 function startRealtime(currentSession){
-  ws = new WebSocket(
-    `wss://stream.binance.com:9443/ws/btcusdt@kline_${INTERVAL}`
+  ws=new WebSocket(
+    `wss://stream.binance.com:9443/ws/${SYMBOL.toLowerCase()}@kline_${INTERVAL}`
   );
 
-  ws.onmessage = e => {
-    if (currentSession !== sessionId) return;
+  ws.onmessage=e=>{
+    if(currentSession!==sessionId)return;
 
     const data = JSON.parse(e.data);
     const k = data.k;
-    const time = Math.floor(k.t / 1000);
+    const time=Math.floor(k.t/1000);
 
-    // 1. Обновляем свечу цены
     candles.update({
-      time: time,
-      open: +k.o,
-      high: +k.h,
-      low: +k.l,
-      close: +k.c
+      time,
+      open:+k.o,
+      high:+k.h,
+      low:+k.l,
+      close:+k.c
     });
 
-    // 2. Обновляем объем (Без дельт, используем абсолютные значения свечи)
-    // k.Q = Taker buy quote asset volume (USDT)
-    // k.q = Quote asset volume (USDT)
-    // Внимание: используем .Q (большую) и .q (малую)
-    
-    const currentNet = (2 * +k.Q - +k.q);
+    // Расчеты для реалтайма
+    const totalVol = +k.q; // Quote Volume
+    const buyVol = +k.Q;   // Taker Buy Volume
+    const sellVol = totalVol - buyVol;
+    const currentNet = buyVol - sellVol;
+
+    // Обновляем карту и последнее время
+    volumeDetailsMap.set(time, { total: totalVol, buy: buyVol, sell: sellVol });
+    lastTime = time;
 
     volumeSeries.update({
-      time: time,
-      value: currentNet / 1e6, // Делим на 1млн, чтобы соотносилось с историей
-      color: currentNet >= 0 ? '#1fc77b' : '#e04b4b'
+      time,
+      value:currentNet/1e6,
+      color:currentNet>=0?'#1fc77b':'#e04b4b'
     });
+    
+    // Если мышь не на графике, обновляем легенду на текущую свечу
+    // (упрощенная проверка - просто обновляем если это последняя свеча)
+    // Но лучше оставить управление через crosshairHandler, он сам покажет lastTime если нет фокуса
+    // Однако, если мы просто смотрим на график без мыши - надо обновлять цифры онлайн:
+    const d = volumeDetailsMap.get(lastTime);
+    // Проверка: если курсор не двигается, можно принудительно обновить, 
+    // но чтобы не мерцало под мышкой, оставим пассивное обновление при отсутствии фокуса.
   };
 
-  ws.onclose = () => {
-    if (currentSession !== sessionId) return;
-    console.log("WS closed, reconnecting...");
-    setTimeout(()=>startRealtime(currentSession), 2000);
+  ws.onclose=()=>{
+    if(currentSession!==sessionId)return;
+    setTimeout(()=>startRealtime(currentSession),2000);
   };
 }
 
-/* ===== UI HANDLERS ===== */
+/* ===== CONTROLS ===== */
 function setTF(tf){
   if(INTERVAL === tf) return;
-  INTERVAL = tf;
-  document.querySelectorAll('.tf-buttons button').forEach(b=>b.classList.remove('active'));
+  INTERVAL=tf;
+  document.querySelectorAll('#tf-buttons button')
+    .forEach(b=>b.classList.remove('active'));
   event.target.classList.add('active');
   loadData();
 }
 
-// Старт
+function setSymbol(symbol){
+  if(SYMBOL === symbol) return;
+  SYMBOL=symbol;
+  
+  document.querySelectorAll('#symbol-buttons button')
+    .forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  
+  document.querySelector('.title').innerHTML = `${SYMBOL} <span style="color:#6b7280; font-weight:400;">NET VOL</span>`;
+  
+  loadData();
+}
+
+// Init
 loadData();
 </script>
 </body>
