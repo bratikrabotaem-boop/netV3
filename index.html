@@ -127,14 +127,10 @@ body {
       <button onclick="setSymbol('BNBUSDT')">BNB</button>
       <button onclick="setSymbol('SOLUSDT')">SOL</button>
       <button onclick="setSymbol('XRPUSDT')">XRP</button>
-
-      <button onclick="setSymbol('DUSKUSDT')">DUSK</button>
       <button onclick="setSymbol('DOGEUSDT')">DOGE</button>
-      <button onclick="setSymbol('PEPEUSDT')">PEPE</button>
       <button onclick="setSymbol('NOTUSDT')">NOT</button>
       <button onclick="setSymbol('BOMEUSDT')">BOME</button>
       <button onclick="setSymbol('MEMEUSDT')">MEME</button>
-      <button onclick="setSymbol('FRAXUSDT')">FRAX</button>
       <button onclick="setSymbol('TRUMPUSDT')">TRUMP</button>
     </div>
 
@@ -281,7 +277,7 @@ async function loadData(){
 
   try {
     // 1. Fetch Spot
-    const rSpot = await fetch(`https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=${INTERVAL}&limit=500`);
+    const rSpot = await fetch(`https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=${INTERVAL}&limit=1000`);
     const dSpot = await rSpot.json();
 
     const cData=[], vData=[];
@@ -297,7 +293,7 @@ async function loadData(){
 
     // 2. Fetch Futures
     try {
-        const rFut = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${SYMBOL}&interval=${INTERVAL}&limit=500`);
+        const rFut = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${SYMBOL}&interval=${INTERVAL}&limit=1000`);
         const dFut = await rFut.json();
         
         if(Array.isArray(dFut)){
