@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 
 <style>
-/* ===== СТИЛЬ (Сохранен оригинальный) ===== */
+/* ===== СТИЛЬ ===== */
 body {
     margin: 0;
     background: #121417;
@@ -41,7 +41,6 @@ body {
     text-align: center;
 }
 
-/* Section headers for charts */
 .chart-label {
     font-size: 11px;
     font-weight: 700;
@@ -52,7 +51,7 @@ body {
     padding-left: 4px;
 }
 
-/* Controls Container */
+/* Controls */
 .controls {
     display: flex;
     flex-direction: column;
@@ -89,19 +88,19 @@ body {
     border-color: #6b7280;
 }
 
-/* ===== ГРАФИКИ ===== */
+/* Графики */
 .chart-box {
     width: 100%;
     border-radius: 12px;
     overflow: hidden;
     border: 1px solid #1f2937;
     position: relative;
-    margin-bottom: 5px; /* Чуть меньше отступ между самими блоками */
+    margin-bottom: 5px;
     background: #121417;
 }
 
 #price { 
-    height: 380px; /* Немного уменьшил высоту цены, чтобы всё влезало комфортнее */
+    height: 380px; 
     width: 100%; 
 }
 #volume { 
@@ -204,7 +203,7 @@ const priceContainer = document.getElementById('price');
 const volumeContainer = document.getElementById('volume');
 const volumeFutContainer = document.getElementById('volumeFut');
 
-// 1. Price Chart (Spot)
+// 1. Price Chart
 const priceChart = LightweightCharts.createChart(priceContainer, {
   ...commonOpts,
   rightPriceScale:{visible:false}, leftPriceScale:{visible:false}
@@ -215,7 +214,7 @@ const candles = priceChart.addCandlestickSeries({
   wickUpColor:'#1fc77b', wickDownColor:'#e04b4b'
 });
 
-// 2. Volume Chart (Spot)
+// 2. Volume Chart
 const volumeChart = LightweightCharts.createChart(volumeContainer, {
   ...commonOpts,
   rightPriceScale:{visible:false}, leftPriceScale:{visible:false}
@@ -224,7 +223,7 @@ const volumeSeries = volumeChart.addHistogramSeries({
   base:0, priceFormat:{type:'volume'}
 });
 
-// 3. Volume Chart (Futures)
+// 3. Futures Volume Chart
 const volumeFutChart = LightweightCharts.createChart(volumeFutContainer, {
   ...commonOpts,
   rightPriceScale:{visible:false}, leftPriceScale:{visible:false}
@@ -234,35 +233,25 @@ const volumeFutSeries = volumeFutChart.addHistogramSeries({
 });
 
 /* ===== SYNC CHARTS ===== */
-// Функция для связывания двух графиков
-function linkCharts(c1, c2) {
-    c1.timeScale().subscribeVisibleLogicalRangeChange(range => {
-        if (range) c2.timeScale().setVisibleLogicalRange(range);
-    });
-}
-// Связываем по цепочке (самый простой способ без бесконечных циклов в новой версии)
-// Главный драйвер - Price, он обновляет объемы
+// Главный драйвер - Price
 priceChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
     if(range) {
         volumeChart.timeScale().setVisibleLogicalRange(range);
         volumeFutChart.timeScale().setVisibleLogicalRange(range);
     }
 });
-// Если скроллим Spot Volume - двигаются остальные
 volumeChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
     if(range) {
         priceChart.timeScale().setVisibleLogicalRange(range);
         volumeFutChart.timeScale().setVisibleLogicalRange(range);
     }
 });
-// Если скроллим Futures Volume - двигаются остальные
 volumeFutChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
     if(range) {
         priceChart.timeScale().setVisibleLogicalRange(range);
         volumeChart.timeScale().setVisibleLogicalRange(range);
     }
 });
-
 
 function resizeCharts(){
   const w = priceContainer.parentElement.offsetWidth;
@@ -273,8 +262,7 @@ function resizeCharts(){
 window.addEventListener('resize',resizeCharts);
 setTimeout(resizeCharts, 100);
 
-/* ===== LOGIC FOR NET VOLUME ===== */
-// Formula: 2 * TakerBuyQuoteVol - TotalQuoteVol
+/* ===== LOGIC ===== */
 function calcNet(k) {
     return (2 * parseFloat(k[10]) - parseFloat(k[7]));
 }
@@ -284,17 +272,15 @@ async function loadData(){
   sessionId++;
   const currentSession = sessionId;
 
-  // Close old WS
+  // Очистка при смене
   if(wsSpot) { wsSpot.close(); wsSpot=null; }
   if(wsFut) { wsFut.close(); wsFut=null; }
 
-  // Clear data
-  candles.setData([]);
-  volumeSeries.setData([]);
-  volumeFutSeries.setData([]);
+  // НЕ очищаем данные setData([]) здесь, чтобы избежать моргания и "улетания" графика
+  // сразу загружаем новые данные поверх
 
   try {
-    // 1. Fetch Spot Data
+    // 1. Fetch Spot
     const rSpot = await fetch(`https://api.binance.com/api/v3/klines?symbol=${SYMBOL}&interval=${INTERVAL}&limit=500`);
     const dSpot = await rSpot.json();
 
@@ -302,46 +288,43 @@ async function loadData(){
     dSpot.forEach(k=>{
       const t=k[0]/1000;
       cData.push({time:t, open:+k[1], high:+k[2], low:+k[3], close:+k[4]});
-      
       const net = calcNet(k);
-      vData.push({
-        time:t,
-        value: net/1e6, // В миллионах
-        color: net>=0 ? '#1fc77b' : '#e04b4b'
-      });
+      vData.push({time:t, value: net/1e6, color: net>=0 ? '#1fc77b' : '#e04b4b'});
     });
     
     candles.setData(cData);
     volumeSeries.setData(vData);
 
-    // 2. Fetch Futures Data
-    // Note: Некоторые щиткоины могут не иметь фьючерсов, обрабатываем ошибку
+    // 2. Fetch Futures
     try {
         const rFut = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${SYMBOL}&interval=${INTERVAL}&limit=500`);
         const dFut = await rFut.json();
         
-        // Проверка, что пришел массив (если ошибка, придет объект с code)
         if(Array.isArray(dFut)){
             const vFutData = [];
             dFut.forEach(k=>{
                 const t=k[0]/1000;
                 const net = calcNet(k);
-                vFutData.push({
-                    time:t,
-                    value: net/1e6,
-                    color: net>=0 ? '#1fc77b' : '#e04b4b'
-                });
+                vFutData.push({time:t, value: net/1e6, color: net>=0 ? '#1fc77b' : '#e04b4b'});
             });
             volumeFutSeries.setData(vFutData);
+        } else {
+             volumeFutSeries.setData([]); // Очистить, если фьючерсов нет
         }
     } catch (e) {
-        console.log("No Futures data or fetch error", e);
+        volumeFutSeries.setData([]);
     }
 
-    // Fit & Resize
-    priceChart.timeScale().fitContent();
-    resizeCharts();
+    // ВАЖНОЕ ИСПРАВЛЕНИЕ:
+    // Вместо fitContent() используем scrollToPosition(0, false)
+    // Это заставляет график встать к самой правой свече
+    priceChart.timeScale().scrollToPosition(0, false);
+    
+    // Синхронизация остальных (на всякий случай дублируем, чтобы точно встали ровно)
+    volumeChart.timeScale().scrollToPosition(0, false);
+    volumeFutChart.timeScale().scrollToPosition(0, false);
 
+    resizeCharts();
     startRealtime(currentSession);
 
   } catch(err) {
@@ -351,44 +334,25 @@ async function loadData(){
 
 /* ===== REALTIME ===== */
 function startRealtime(currentSession){
-  
-  // SPOT WEBSOCKET
   wsSpot = new WebSocket(`wss://stream.binance.com:9443/ws/${SYMBOL.toLowerCase()}@kline_${INTERVAL}`);
   wsSpot.onmessage = e => {
     if(currentSession!==sessionId) return;
     const data = JSON.parse(e.data);
     const k = data.k;
     const time = Math.floor(k.t/1000);
-
-    // Update Candles
     candles.update({ time, open:+k.o, high:+k.h, low:+k.l, close:+k.c });
-
-    // Update Spot Vol
-    // k.Q = TakerBuyQuoteVol, k.q = QuoteVol
     const net = (2 * +k.Q - +k.q);
-    volumeSeries.update({
-      time,
-      value: net/1e6,
-      color: net>=0 ? '#1fc77b' : '#e04b4b'
-    });
+    volumeSeries.update({ time, value: net/1e6, color: net>=0 ? '#1fc77b' : '#e04b4b' });
   };
 
-  // FUTURES WEBSOCKET
-  // fstream.binance.com
   wsFut = new WebSocket(`wss://fstream.binance.com/ws/${SYMBOL.toLowerCase()}@kline_${INTERVAL}`);
   wsFut.onmessage = e => {
     if(currentSession!==sessionId) return;
     const data = JSON.parse(e.data);
     const k = data.k;
     const time = Math.floor(k.t/1000);
-
-    // Update Futures Vol
     const net = (2 * +k.Q - +k.q);
-    volumeFutSeries.update({
-      time,
-      value: net/1e6,
-      color: net>=0 ? '#1fc77b' : '#e04b4b'
-    });
+    volumeFutSeries.update({ time, value: net/1e6, color: net>=0 ? '#1fc77b' : '#e04b4b' });
   };
 }
 
@@ -410,7 +374,6 @@ function setSymbol(symbol){
   loadData();
 }
 
-// Init
 loadData();
 </script>
 </body>
